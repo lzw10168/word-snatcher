@@ -1,0 +1,57 @@
+{
+  "name": "word-snatcher",
+  "displayName": "Word snatcher",
+  "version": "0.0.1",
+  "description": "现代,用户友好的单词学习插件",
+  "author": "Plasmo Corp. <foss@plasmo.com>",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.4",
+    "@hookform/resolvers": "^5.0.1",
+    "@plasmohq/storage": "^1.15.0",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/react-radio-group": "^1.3.7",
+    "@radix-ui/themes": "^3.2.1",
+    "@tailwindcss/forms": "^0.5.10",
+    "lucide-react": "^0.511.0",
+    "plasmo": "0.90.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "shadcn-ui": "^0.9.5",
+    "sonner": "^2.0.3",
+    "zod": "^3.25.15",
+    "zustand": "^5.0.4"
+  },
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "4.1.1",
+    "@radix-ui/react-switch": "^1.2.5",
+    "@tailwindcss/postcss7-compat": "^2.2.17",
+    "@types/chrome": "0.0.258",
+    "@types/node": "20.11.5",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "autoprefixer": "^9.8.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "postcss": "^8.5.3",
+    "prettier": "3.2.4",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss": "^4.1.7",
+    "typescript": "5.3.3"
+  },
+  "manifest": {
+    "host_permissions": [
+      "https://*/*"
+    ],
+    "permissions": [
+      "contextMenus",
+      "storage",
+      "activeTab",
+      "identity"
+    ]
+  }
+}

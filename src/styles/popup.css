@@ -1,0 +1,8 @@
+html,
+body,
+#root {
+  width: 500px !important;
+  min-width: 500px !important;
+  max-width: 600px;
+  /* 你可以根据需要调整 */
+}
