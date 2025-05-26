@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button"
+import { getAPI, type PlatformType } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
+
+import { Storage } from "@plasmohq/storage"
 
 import { useStore } from "./lib/store"
 
@@ -9,14 +12,67 @@ import "./styles/globals.css"
 import "./styles/popup.css"
 
 type TabType = "settings" | "features" | "contact"
-
+console.log("popup.tsx loaded")
 function IndexPopup() {
   const { theme, setTheme, platform, setPlatform } = useStore()
   const [activeTab, setActiveTab] = useState<TabType>("settings")
 
+  // 新增：登录状态 state
+  const [loginStatus, setLoginStatus] = useState({
+    bbdc: false,
+    momo: false,
+    baicizhan: false,
+    shanbay: false
+  })
+
+  const storage = new Storage()
+
+  const platforms = [
+    {
+      key: "bbdc",
+      name: "不背单词",
+      loginUrl:
+        "https://bbdc.cn/lexis/login?redirectUrl=http%3A%2F%2Fbbdc.cn%2Fnewword"
+    },
+    {
+      key: "momo",
+      name: "默默背单词",
+      loginUrl: "https://www.maimemo.com/home/login"
+    },
+    { key: "baicizhan", name: "百词斩", loginUrl: "" },
+    { key: "shanbay", name: "扇贝", loginUrl: "" }
+  ] as const
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
+
+  useEffect(() => {
+    storage.get("platform").then((platform) => {
+      setPlatform(platform as PlatformType)
+    })
+  }, [])
+
+  useEffect(() => {
+    storage.set("platform", platform)
+  }, [platform])
+
+  // 新增：检测所有平台登录状态
+  useEffect(() => {
+    async function checkAllLogins() {
+      const bbdc = await getAPI("bbdc").checkLogin()
+      const momo = await getAPI("momo").checkLogin()
+      const baicizhan = await getAPI("baicizhan").checkLogin()
+      const shanbay = await getAPI("shanbay").checkLogin()
+      setLoginStatus({ bbdc, momo, baicizhan, shanbay })
+    }
+
+    if (activeTab === "settings") {
+      console.log("checkAllLogins")
+
+      checkAllLogins()
+    }
+  }, [activeTab])
 
   return (
     <div className="w-[600px] h-[400px] bg-background text-foreground flex flex-col">
@@ -84,30 +140,16 @@ function IndexPopup() {
         <div className="flex-1 p-2 relative">
           {activeTab === "settings" && (
             <div className="space-y-2">
-              <PlatformItem
-                name="不背单词"
-                isSelected={platform === "bubei"}
-                onClick={() => setPlatform("bubei")}
-                isLoggedIn={true}
-              />
-              <PlatformItem
-                name="默默背单词"
-                isSelected={platform === "momo"}
-                onClick={() => setPlatform("momo")}
-                isLoggedIn={false}
-              />
-              <PlatformItem
-                name="百词斩"
-                isSelected={platform === "baicizhan"}
-                onClick={() => setPlatform("baicizhan")}
-                isLoggedIn={false}
-              />
-              <PlatformItem
-                name="扇贝"
-                isSelected={platform === "shanbay"}
-                onClick={() => setPlatform("shanbay")}
-                isLoggedIn={false}
-              />
+              {platforms.map((item) => (
+                <PlatformItem
+                  key={item.key}
+                  name={item.name}
+                  isSelected={platform === item.key}
+                  onClick={() => setPlatform(item.key as PlatformType)}
+                  isLoggedIn={loginStatus[item.key]}
+                  loginUrl={item.loginUrl}
+                />
+              ))}
             </div>
           )}
 
@@ -139,13 +181,15 @@ interface PlatformItemProps {
   isSelected: boolean
   onClick: () => void
   isLoggedIn?: boolean
+  loginUrl?: string
 }
 
 function PlatformItem({
   name,
   isSelected,
   onClick,
-  isLoggedIn = false
+  isLoggedIn = false,
+  loginUrl = ""
 }: PlatformItemProps) {
   return (
     <div
@@ -166,6 +210,13 @@ function PlatformItem({
         <div className="flex items-center gap-2">
           <Button
             variant={isLoggedIn ? "outline" : "ghost"}
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              if (!isLoggedIn) {
+                window.open(loginUrl, "_blank")
+              }
+            }}
             size="sm"
             className={cn(
               "text-xs px-2 h-6",

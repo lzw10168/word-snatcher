@@ -3,7 +3,7 @@
   "displayName": "Word snatcher",
   "version": "0.0.1",
   "description": "现代,用户友好的单词学习插件",
-  "author": "Plasmo Corp. <foss@plasmo.com>",
+  "author": "lzw10168. <lzw10168@163.com>",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
