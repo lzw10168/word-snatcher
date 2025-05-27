@@ -1,3 +1,5 @@
+import { Storage } from "@plasmohq/storage"
+
 interface PlatformAPI {
   addWord: (word: string) => Promise<boolean>
   checkLogin: () => Promise<boolean>
@@ -92,30 +94,141 @@ class bbdcAPI implements PlatformAPI {
 }
 
 class MomoAPI implements PlatformAPI {
-  async addWord(word: string) {
-    // TODO: 实现百词斩 API
+  private storage = new Storage()
+  private async getApiKey(): Promise<string> {
+    return ((await this.storage.get("momoApiKey")) as string) || ""
+  }
+
+  // 获取云词本列表
+  private async listNotepads(apiKey: string) {
+    const res = await fetch("https://open.maimemo.com/api/v1/notepads", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      }
+    })
+    if (!res.ok) throw new Error("获取云词本失败")
+    return res.json()
+  }
+
+  // 创建云词本，参数参考用户给定格式
+  private async createNotepad(apiKey: string, word: string) {
+    const todayDate = new Date().toLocaleDateString("en-CA")
+    const res = await fetch("https://open.maimemo.com/api/v1/notepads", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        notepad: {
+          status: "UNPUBLISHED",
+          content: `# ${todayDate}\n${word}\n`,
+          title: "浏览器单词同步",
+          brief: "浏览器插件单词同步(请勿修改描述)",
+          tags: []
+        }
+      })
+    })
+    if (!res.ok) throw new Error("创建云词本失败")
+    const data = await res.json()
+    return data?.notepad?.id || data?.id
+  }
+
+  // 整体更新云词本内容，插入单词到当天 section
+  private async addWordToNotepad(
+    apiKey: string,
+    notepadId: string,
+    word: string
+  ) {
+    // 1. 获取当前云词本内容
+    const getRes = await fetch(
+      `https://open.maimemo.com/api/v1/notepads/${notepadId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        }
+      }
+    )
+    if (!getRes.ok) throw new Error("获取云词本内容失败")
+    const notepadData = await getRes.json()
+    const notepad = notepadData?.notepad
+    if (!notepad) throw new Error("云词本不存在")
+
+    // 2. 解析内容，插入单词到今天 section
+    const today = new Date().toLocaleDateString("en-CA")
+    let lines = notepad.content.split("\n").map((line) => line.trim())
+    let idx = lines.findIndex((line) => line.startsWith(`# ${today}`))
+    if (idx === -1) {
+      lines.unshift("")
+      lines.unshift(`# ${today}`)
+      idx = 0
+    }
+    // 检查是否已存在该单词，避免重复
+    if (!lines.includes(word)) {
+      lines.splice(idx + 1, 0, word)
+    }
+
+    // 3. POST 整体内容回去
+    const postRes = await fetch(
+      `https://open.maimemo.com/api/v1/notepads/${notepadId}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          notepad: {
+            ...notepad,
+            content: lines.join("\n")
+          }
+        })
+      }
+    )
+    if (!postRes.ok) throw new Error("更新云词本失败")
     return true
   }
 
   async checkLogin() {
+    const apiKey = await this.getApiKey()
+    if (!apiKey) return false
     try {
-      const res = await fetch("https://www.maimemo.com/notepad/add", {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-          Referer: "https://www.maimemo.com/notepad/show",
-          "User-Agent": navigator.userAgent
-        }
-      })
-      if (!res.ok) return false
-      const html = await res.text()
-      if (html.includes("i-dengchu")) {
-        return true // 未登录
+      const data = await this.listNotepads(apiKey)
+      return Array.isArray(data?.notepads)
+    } catch {
+      return false
+    }
+  }
+
+  async addWord(word: string) {
+    const apiKey = await this.getApiKey()
+    if (!apiKey) return false
+    let notepads
+    try {
+      const data = await this.listNotepads(apiKey)
+      notepads = data.notepads
+    } catch {
+      notepads = []
+    }
+    let notepad = notepads?.find(
+      (n: any) =>
+        n.title === "浏览器单词同步" &&
+        n.brief === "浏览器插件单词同步(请勿修改描述)"
+    )
+    let notepadId = notepad?.id
+    if (!notepadId) {
+      try {
+        notepadId = await this.createNotepad(apiKey, word)
+      } catch {
+        return false
       }
-      return false // 已登录
-    } catch (e) {
+    }
+    try {
+      await this.addWordToNotepad(apiKey, notepadId, word)
+      return true
+    } catch {
       return false
     }
   }

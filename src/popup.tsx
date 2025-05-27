@@ -12,10 +12,10 @@ import "./styles/globals.css"
 import "./styles/popup.css"
 
 type TabType = "settings" | "features" | "contact"
-console.log("popup.tsx loaded")
 function IndexPopup() {
   const { theme, setTheme, platform, setPlatform } = useStore()
   const [activeTab, setActiveTab] = useState<TabType>("settings")
+  const [momoApiKey, setMomoApiKey] = useState("")
 
   // 新增：登录状态 state
   const [loginStatus, setLoginStatus] = useState({
@@ -37,7 +37,7 @@ function IndexPopup() {
     {
       key: "momo",
       name: "默默背单词",
-      loginUrl: "https://www.maimemo.com/home/login"
+      loginUrl: ""
     },
     { key: "baicizhan", name: "百词斩", loginUrl: "" },
     { key: "shanbay", name: "扇贝", loginUrl: "" }
@@ -50,6 +50,10 @@ function IndexPopup() {
   useEffect(() => {
     storage.get("platform").then((platform) => {
       setPlatform(platform as PlatformType)
+    })
+    // 加载API Key
+    storage.get("momoApiKey").then((key) => {
+      if (key) setMomoApiKey(key as string)
     })
   }, [])
 
@@ -73,6 +77,13 @@ function IndexPopup() {
       checkAllLogins()
     }
   }, [activeTab])
+
+  // 保存API Key
+  useEffect(() => {
+    if (momoApiKey) {
+      storage.set("momoApiKey", momoApiKey)
+    }
+  }, [momoApiKey])
 
   return (
     <div className="w-[600px] h-[400px] bg-background text-foreground flex flex-col">
@@ -148,6 +159,11 @@ function IndexPopup() {
                   onClick={() => setPlatform(item.key as PlatformType)}
                   isLoggedIn={loginStatus[item.key]}
                   loginUrl={item.loginUrl}
+                  showApiKey={item.key === "momo" && platform === "momo"}
+                  apiKey={item.key === "momo" ? momoApiKey : ""}
+                  onApiKeyChange={
+                    item.key === "momo" ? setMomoApiKey : undefined
+                  }
                 />
               ))}
             </div>
@@ -182,6 +198,9 @@ interface PlatformItemProps {
   onClick: () => void
   isLoggedIn?: boolean
   loginUrl?: string
+  showApiKey?: boolean
+  apiKey?: string
+  onApiKeyChange?: (value: string) => void
 }
 
 function PlatformItem({
@@ -189,19 +208,23 @@ function PlatformItem({
   isSelected,
   onClick,
   isLoggedIn = false,
-  loginUrl = ""
+  loginUrl = "",
+  showApiKey = false,
+  apiKey = "",
+  onApiKeyChange
 }: PlatformItemProps) {
   return (
     <div
-      onClick={onClick}
       className={cn(
-        "p-2 py-1 rounded-lg border cursor-pointer transition-colors",
+        "p-2 py-1 rounded-lg border transition-colors",
         isSelected
           ? "bg-gray-200 border-gray-400 dark:bg-gray-800 dark:border-gray-600"
           : "hover:bg-gray-100 dark:hover:bg-gray-800"
       )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div
+        className="flex items-center justify-between cursor-pointer"
+        onClick={onClick}>
+        <div className="flex items-center gap-2 ">
           <span className="font-medium">{name}</span>
           {isLoggedIn && (
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -228,6 +251,18 @@ function PlatformItem({
           </Button>
         </div>
       </div>
+      {showApiKey && (
+        <div className="mt-2">
+          <input
+            type="text"
+            value={apiKey}
+            onChange={(e) => onApiKeyChange?.(e.target.value)}
+            placeholder="请输入默默背单词 API Key"
+            className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }
