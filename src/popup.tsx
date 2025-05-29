@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { getAPI, type PlatformType } from "@/lib/api"
+import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -11,11 +12,16 @@ import { useStore } from "./lib/store"
 import "./styles/globals.css"
 import "./styles/popup.css"
 
-type TabType = "settings" | "features" | "contact"
+import { SupabaseLogin } from "@/components/SupabaseLogin"
+
+import { useStorage } from "@plasmohq/storage/hook"
+
+type TabType = "settings" | "features" | "contact" | "login"
 function IndexPopup() {
   const { theme, setTheme, platform, setPlatform } = useStore()
   const [activeTab, setActiveTab] = useState<TabType>("settings")
   const [momoApiKey, setMomoApiKey] = useState("")
+  const [showLogin, setShowLogin] = useState(false)
 
   // 新增：登录状态 state
   const [loginStatus, setLoginStatus] = useState({
@@ -26,6 +32,13 @@ function IndexPopup() {
   })
 
   const storage = new Storage()
+
+  const [user, setUser] = useStorage<any>({
+    key: "user",
+    instance: new Storage({
+      area: "local"
+    })
+  })
 
   const platforms = [
     {
@@ -41,6 +54,12 @@ function IndexPopup() {
     },
     { key: "baicizhan", name: "百词斩", loginUrl: "" },
     { key: "shanbay", name: "扇贝", loginUrl: "" }
+  ] as const
+
+  const tabs = [
+    { key: "settings", label: "APP设置" },
+    { key: "features", label: "更多功能" },
+    { key: "contact", label: "联系我们" }
   ] as const
 
   useEffect(() => {
@@ -85,6 +104,19 @@ function IndexPopup() {
     }
   }, [momoApiKey])
 
+  // useEffect(() => {
+  //   supabase.auth.getUser().then(({ data }) => {
+  //     setUser(data?.user)
+  //   })
+  //   // 监听登录状态变化
+  //   const { data: listener } = supabase.auth.onAuthStateChange(() => {
+  //     supabase.auth.getUser().then(({ data }) => setUser(data?.user))
+  //   })
+  //   return () => {
+  //     listener?.subscription.unsubscribe()
+  //   }
+  // }, [])
+
   return (
     <div className="w-[600px] h-[400px] bg-background text-foreground flex flex-col">
       {/* Top Bar */}
@@ -102,8 +134,14 @@ function IndexPopup() {
               onClick={() => setTheme("dark")}
             />
           )}
-          <Button variant="ghost" size="sm" className="font-medium ">
-            登录
+          <Button
+            variant="ghost"
+            size="sm"
+            className="font-medium"
+            onClick={() => {
+              chrome.runtime.openOptionsPage()
+            }}>
+            {user ? user.email.split("@")[0] : "登录"}
           </Button>
         </div>
       </div>
@@ -112,39 +150,20 @@ function IndexPopup() {
       <div className="flex">
         {/* Sidebar */}
         <div className="w-[120px] flex flex-col h-[100%] p-2 space-y-1 border-r">
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start font-medium rounded-lg transition-colors text-sm",
-              activeTab === "settings"
-                ? "bg-accent font-bold text-gray-900 dark:bg-accent-700 dark:text-gray-100"
-                : "hover:bg-accent/60 hover:text-gray-900 dark:hover:bg-accent-800 dark:hover:text-gray-100"
-            )}
-            onClick={() => setActiveTab("settings")}>
-            APP设置
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start font-medium rounded-lg transition-colors text-sm",
-              activeTab === "features"
-                ? "bg-accent font-bold text-gray-900 dark:bg-accent-700 dark:text-gray-100"
-                : "hover:bg-accent/60 hover:text-gray-900 dark:hover:bg-accent-800 dark:hover:text-gray-100"
-            )}
-            onClick={() => setActiveTab("features")}>
-            更多功能
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start font-medium rounded-lg transition-colors text-sm",
-              activeTab === "contact"
-                ? "bg-accent font-bold text-gray-900 dark:bg-accent-700 dark:text-gray-100"
-                : "hover:bg-accent/60 hover:text-gray-900 dark:hover:bg-accent-800 dark:hover:text-gray-100"
-            )}
-            onClick={() => setActiveTab("contact")}>
-            联系我们
-          </Button>
+          {tabs.map((tab) => (
+            <Button
+              key={tab.key}
+              variant="ghost"
+              className={cn(
+                "w-full justify-start font-medium rounded-lg transition-colors text-sm",
+                activeTab === tab.key
+                  ? "bg-accent font-bold text-gray-900 dark:bg-accent-700 dark:text-gray-100"
+                  : "hover:bg-accent/60 hover:text-gray-900 dark:hover:bg-accent-800 dark:hover:text-gray-100"
+              )}
+              onClick={() => setActiveTab(tab.key as TabType)}>
+              {tab.label}
+            </Button>
+          ))}
         </div>
 
         {/* Content Area */}
@@ -180,7 +199,6 @@ function IndexPopup() {
               <p>联系方式即将添加...</p>
             </div>
           )}
-
           <div className="p-2 text-right text-xs text-muted-foreground">
             powered by lzw1068
           </div>
